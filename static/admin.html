@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .drawer { transform: translateX(100%); transition: transform 0.25s ease; }
+    .drawer.open { transform: translateX(0); }
+    .badge-active { background:#d1fae5; color:#065f46; }
+    .badge-inactive { background:#fee2e2; color:#991b1b; }
+    #overlay { display:none; }
+    #overlay.show { display:block; }
+    .msg-del { transition: background 0.15s, color 0.15s; }
+    .admin-msg pre { background:#1e1e2e; border-radius:6px; padding:8px 12px; overflow-x:auto; margin:4px 0; }
+    .admin-msg pre code { font-family:'Menlo','Monaco','Courier New',monospace; font-size:0.75em; color:#cdd6f4; }
+    .admin-msg :not(pre)>code { font-family:'Menlo','Monaco','Courier New',monospace; font-size:0.75em; background:#f1f5f9; color:#0f172a; padding:1px 4px; border-radius:3px; }
+    .admin-msg p { margin:0 0 4px; }
+    .admin-msg p:last-child { margin:0; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- Header -->
+<header class="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between sticky top-0 z-10">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+      <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+      </svg>
+    </div>
+    <span class="font-bold text-gray-900 text-sm">Admin Panel</span>
+  </div>
+  <a href="/" class="flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 transition-colors">
+    Open Chat App
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+    </svg>
+  </a>
+</header>
+
+<!-- Stats -->
+<div class="px-6 pt-5 pb-4 grid grid-cols-3 gap-4 max-w-3xl">
+  <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+    <p class="text-xs text-gray-500 mb-1">Total Users</p>
+    <p id="stat-total" class="text-2xl font-bold text-gray-900">—</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+    <p class="text-xs text-gray-500 mb-1">Active Users</p>
+    <p id="stat-active" class="text-2xl font-bold text-green-600">—</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
+    <p class="text-xs text-gray-500 mb-1">Total Sessions</p>
+    <p id="stat-sessions" class="text-2xl font-bold text-indigo-600">—</p>
+  </div>
+</div>
+
+<!-- Users Table -->
+<div class="px-6 pb-8">
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
+      <h2 class="font-semibold text-gray-900 text-sm">Users</h2>
+      <div class="flex items-center gap-2 ml-auto">
+        <input id="search" type="text" placeholder="Search name or email…" oninput="filterUsers()"
+          class="px-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 w-48"/>
+        <button onclick="openAddModal()"
+          class="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors font-medium">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          Add User
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100 bg-gray-50">
+            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Name</th>
+            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Email</th>
+            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Age</th>
+            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Phone</th>
+            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Status</th>
+            <th class="text-left px-5 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody">
+          <tr><td colspan="6" class="text-center py-12 text-gray-400 text-sm">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay -->
+<div id="overlay" onclick="closeDrawer()" class="fixed inset-0 bg-black/20 z-20"></div>
+
+<!-- Sessions Drawer -->
+<div id="drawer" class="drawer fixed top-0 right-0 h-full w-[500px] bg-white border-l border-gray-200 z-30 flex flex-col shadow-2xl">
+  <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 shrink-0">
+    <div class="min-w-0">
+      <h3 class="font-semibold text-gray-900 text-sm">Chat Sessions</h3>
+      <p id="drawer-email" class="text-xs text-gray-500 mt-0.5 truncate"></p>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button onclick="deleteAllUserSessions()"
+        class="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 px-2.5 py-1 rounded-lg transition-colors">
+        Delete All
+      </button>
+      <button onclick="closeDrawer()" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div id="drawer-sessions" class="flex-1 overflow-y-auto p-4 space-y-2"></div>
+</div>
+
+<!-- Add User Modal -->
+<div id="add-modal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="font-bold text-gray-900">Add New User</h3>
+      <button onclick="closeAddModal()" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Full Name *</label>
+        <input id="f-name" type="text" placeholder="John Doe"
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-600 mb-1 block">Email *</label>
+        <input id="f-email" type="email" placeholder="john@example.com"
+          class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">Age *</label>
+          <input id="f-age" type="number" min="0" max="150" placeholder="25"
+            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+        <div>
+          <label class="text-xs font-medium text-gray-600 mb-1 block">Phone *</label>
+          <input id="f-phone" type="tel" placeholder="+1234567890"
+            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"/>
+        </div>
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input id="f-active" type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded accent-indigo-600"/>
+        <span class="text-sm text-gray-700">Active (can log in and chat)</span>
+      </label>
+      <p id="add-error" class="text-red-500 text-xs hidden"></p>
+      <button onclick="submitAddUser()"
+        class="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors mt-1">
+        Create User
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let allUsers = [];
+  let drawerEmail = null;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    loadUsers();
+  });
+
+  async function loadStats() {
+    try {
+      const res = await fetch('/admin/stats');
+      const d = await res.json();
+      document.getElementById('stat-total').textContent = d.total_users;
+      document.getElementById('stat-active').textContent = d.active_users;
+      document.getElementById('stat-sessions').textContent = d.total_sessions;
+    } catch (e) { console.error(e); }
+  }
+
+  async function loadUsers() {
+    try {
+      const res = await fetch('/users/?limit=500');
+      const data = await res.json();
+      allUsers = Array.isArray(data) ? data : [];
+      renderUsers(allUsers);
+    } catch (e) { console.error(e); }
+  }
+
+  function filterUsers() {
+    const q = document.getElementById('search').value.toLowerCase();
+    renderUsers(q
+      ? allUsers.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      : allUsers);
+  }
+
+  function renderUsers(users) {
+    const tbody = document.getElementById('users-tbody');
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center py-12 text-gray-400 text-sm">No users found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = users.map(u => `
+      <tr class="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
+        <td class="px-5 py-3 font-medium text-gray-900 text-sm">${esc(u.name)}</td>
+        <td class="px-5 py-3 text-gray-500 text-sm">${esc(u.email)}</td>
+        <td class="px-5 py-3 text-gray-500 text-sm">${u.age}</td>
+        <td class="px-5 py-3 text-gray-500 text-sm">${esc(u.phone)}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${u.is_active ? 'badge-active' : 'badge-inactive'}">
+            ${u.is_active ? 'Active' : 'Inactive'}
+          </span>
+        </td>
+        <td class="px-5 py-3">
+          <div class="flex items-center gap-1.5">
+            <button onclick="openDrawer('${esc(u.email)}')"
+              class="px-2.5 py-1 text-xs text-indigo-600 border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors">
+              View Chats
+            </button>
+            <button onclick="toggleActive('${u.id}', ${u.is_active})"
+              class="px-2.5 py-1 text-xs border rounded-lg transition-colors ${u.is_active
+                ? 'text-orange-600 border-orange-200 hover:bg-orange-50'
+                : 'text-green-600 border-green-200 hover:bg-green-50'}">
+              ${u.is_active ? 'Deactivate' : 'Activate'}
+            </button>
+            <button onclick="confirmDeleteUser('${u.id}', '${esc(u.email)}')"
+              class="px-2.5 py-1 text-xs text-red-500 border border-red-200 hover:bg-red-50 rounded-lg transition-colors">
+              Delete
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function toggleActive(userId, current) {
+    try {
+      const res = await fetch(`/users/${userId}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({is_active: !current}),
+      });
+      if (!res.ok) throw new Error();
+      await Promise.all([loadUsers(), loadStats()]);
+    } catch { alert('Failed to update user status.'); }
+  }
+
+  async function confirmDeleteUser(userId, email) {
+    if (!confirm(`Delete user "${email}" and all their chat sessions?\n\nThis cannot be undone.`)) return;
+    try {
+      await fetch(`/admin/users/${encodeURIComponent(email)}/sessions`, {method: 'DELETE'});
+      await fetch(`/users/${userId}`, {method: 'DELETE'});
+      await Promise.all([loadUsers(), loadStats()]);
+    } catch { alert('Failed to delete user.'); }
+  }
+
+  async function openDrawer(email) {
+    drawerEmail = email;
+    document.getElementById('drawer-email').textContent = email;
+    document.getElementById('drawer-sessions').innerHTML =
+      '<p class="text-sm text-gray-400 text-center py-8">Loading…</p>';
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('overlay').classList.add('show');
+    await loadDrawerSessions();
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('overlay').classList.remove('show');
+    drawerEmail = null;
+  }
+
+  async function loadDrawerSessions() {
+    try {
+      const res = await fetch(`/chat/sessions?email=${encodeURIComponent(drawerEmail)}`);
+      renderDrawerSessions(await res.json());
+    } catch (e) { console.error(e); }
+  }
+
+  function renderDrawerSessions(sessions) {
+    const el = document.getElementById('drawer-sessions');
+    if (!sessions.length) {
+      el.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">No sessions found</p>';
+      return;
+    }
+    el.innerHTML = sessions.map(s => `
+      <div class="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden">
+        <div class="px-4 py-3 flex items-start justify-between gap-2">
+          <div class="min-w-0 flex-1 cursor-pointer" onclick="toggleMessages('${s.session_id}')">
+            <p class="text-sm font-medium text-gray-800 truncate">${esc(s.title)}</p>
+            <p class="text-xs text-gray-400 mt-0.5">${s.message_count} msg${s.message_count !== 1 ? 's' : ''} · ${timeAgo(s.updated_at)}</p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="toggleMessages('${s.session_id}')"
+              class="px-2 py-1 text-xs text-indigo-600 border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors">
+              View
+            </button>
+            <button onclick="confirmDeleteSession('${s.session_id}')"
+              class="px-2 py-1 text-xs text-red-500 border border-red-200 hover:bg-red-50 rounded-lg transition-colors">
+              Delete
+            </button>
+          </div>
+        </div>
+        <div id="msgs-${s.session_id}" class="hidden border-t border-gray-200 bg-white px-4 py-3 space-y-2 max-h-72 overflow-y-auto"></div>
+      </div>
+    `).join('');
+  }
+
+  marked.setOptions({ breaks: true, gfm: true });
+  function renderMd(text) { return text ? marked.parse(text) : ''; }
+
+  async function toggleMessages(sessionId) {
+    const el = document.getElementById(`msgs-${sessionId}`);
+    if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+
+    el.classList.remove('hidden');
+    if (el.dataset.loaded) return;
+
+    el.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Loading…</p>';
+    try {
+      const res = await fetch(`/chat/sessions/${sessionId}`);
+      const session = await res.json();
+      const msgs = session.messages.filter(m => m.role !== 'system');
+      if (!msgs.length) {
+        el.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">No messages yet</p>';
+      } else {
+        el.innerHTML = msgs.map((m, i) => {
+          const isUser = m.role === 'user';
+          return `
+          <div class="msg-row flex ${isUser ? 'justify-end' : 'justify-start'} items-start gap-2 py-0.5">
+            ${isUser ? `
+              <button class="msg-del shrink-0 mt-1 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 border border-red-200"
+                title="Delete message" onclick="deleteMessage('${sessionId}', ${i})">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>` : ''}
+            <div class="admin-msg max-w-[78%] px-3 py-2 rounded-2xl ${isUser ? 'rounded-tr-sm bg-indigo-600 text-white' : 'rounded-tl-sm bg-white border border-gray-200 shadow-sm text-gray-800'} text-xs leading-relaxed">
+              ${renderMd(m.content)}
+            </div>
+            ${!isUser ? `
+              <button class="msg-del shrink-0 mt-1 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 border border-red-200"
+                title="Delete message" onclick="deleteMessage('${sessionId}', ${i})">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>` : ''}
+          </div>`;
+        }).join('');
+      }
+      el.dataset.loaded = '1';
+    } catch {
+      el.innerHTML = '<p class="text-xs text-red-400 text-center py-3">Failed to load messages</p>';
+    }
+  }
+
+  async function deleteMessage(sessionId, msgIndex) {
+    if (!confirm('Delete this message?')) return;
+    try {
+      const res = await fetch(`/admin/sessions/${sessionId}/messages/${msgIndex}`, {method: 'DELETE'});
+      if (!res.ok) throw new Error();
+      const el = document.getElementById(`msgs-${sessionId}`);
+      delete el.dataset.loaded;
+      el.classList.add('hidden');
+      await toggleMessages(sessionId);
+    } catch { alert('Failed to delete message.'); }
+  }
+
+  async function confirmDeleteSession(sessionId) {
+    if (!confirm('Delete this session?')) return;
+    try {
+      await fetch(`/chat/sessions/${sessionId}`, {method: 'DELETE'});
+      await loadDrawerSessions();
+      loadStats();
+    } catch { alert('Failed to delete session.'); }
+  }
+
+  async function deleteAllUserSessions() {
+    if (!drawerEmail || !confirm(`Delete ALL sessions for ${drawerEmail}?`)) return;
+    try {
+      await fetch(`/admin/users/${encodeURIComponent(drawerEmail)}/sessions`, {method: 'DELETE'});
+      await loadDrawerSessions();
+      loadStats();
+    } catch { alert('Failed to delete sessions.'); }
+  }
+
+  function openAddModal() {
+    document.getElementById('add-modal').classList.remove('hidden');
+    document.getElementById('f-name').focus();
+  }
+
+  function closeAddModal() {
+    document.getElementById('add-modal').classList.add('hidden');
+    ['f-name','f-email','f-age','f-phone'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-active').checked = true;
+    document.getElementById('add-error').classList.add('hidden');
+  }
+
+  async function submitAddUser() {
+    const name = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const age = parseInt(document.getElementById('f-age').value);
+    const phone = document.getElementById('f-phone').value.trim();
+    const is_active = document.getElementById('f-active').checked;
+    const errEl = document.getElementById('add-error');
+
+    if (!name || !email || isNaN(age) || !phone) {
+      errEl.textContent = 'All fields are required.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const res = await fetch('/users/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, email, age, phone, is_active}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        errEl.textContent = data.detail || 'Failed to create user.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      closeAddModal();
+      await Promise.all([loadUsers(), loadStats()]);
+    } catch {
+      errEl.textContent = 'Network error. Please try again.';
+      errEl.classList.remove('hidden');
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeDrawer();
+      closeAddModal();
+    }
+  });
+
+  function esc(str) {
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+
+  function timeAgo(iso) {
+    const d = new Date(iso), now = new Date(), diff = now - d;
+    if (diff < 60000) return 'just now';
+    if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+    if (diff < 604800000) return `${Math.floor(diff/86400000)}d ago`;
+    return d.toLocaleDateString();
+  }
+</script>
+</body>
+</html>
