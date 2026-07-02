@@ -58,9 +58,13 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env` to set your LLM provider and credentials:
+Edit `.env` with your configuration:
 
 ```env
+# MongoDB
+MONGO_URI=mongodb://localhost:27017/
+DB_NAME=fastapi_demo
+
 # Options: openai | ollama
 LLM_PROVIDER=ollama
 
@@ -72,8 +76,6 @@ OPENAI_MODEL=gpt-4o-mini
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=llama3.2
 ```
-
-You also need a running MongoDB instance. Set `MONGO_URI` in `.env` if it differs from the default (`mongodb://localhost:27017`).
 
 ### 3. Run the server
 
